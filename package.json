@@ -1,0 +1,16 @@
+{
+  "name": "shopping_jd",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "jm":"node crypto.js",
+    "run":"node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "crypto-js": "^4.1.1",
+    "selenium-webdriver": "^4.13.0"
+  }
+}
