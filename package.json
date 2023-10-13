@@ -2,15 +2,19 @@
   "name": "shopping_jd",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "exports": "./index.js",
   "scripts": {
-    "jm":"node crypto.js",
-    "run":"node index.js"
+    "start": "node main.js && node test.js",
+    "test": "node test.js"
   },
+  "type": "module",
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@inquirer/prompts": "^3.2.0",
     "crypto-js": "^4.1.1",
+    "inquirer": "^9.2.11",
+    "ora": "^7.0.1",
     "selenium-webdriver": "^4.13.0"
   }
 }

@@ -1,9 +1,12 @@
-var CryptoJS = require('crypto-js');
+import CryptoJS from 'crypto-js';
 
-const [password, secretKey] = process.argv.slice(2);
+// 加密
+export const encrypt = (password, secretKey) =>
+  CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(password), secretKey).toString();
 
-// 密码加密
-const encrypted = CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(password), secretKey).toString();
+// 解密
+export const decrypt = (password, secretKey) => {
+  const bytes = CryptoJS.AES.decrypt(password, secretKey);
 
-const bytes= CryptoJS.AES.decrypt(encrypted, secretKey);
-var originalText = bytes.toString(CryptoJS.enc.Utf8); 
+  return bytes.toString(CryptoJS.enc.Utf8);
+};

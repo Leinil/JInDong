@@ -1,4 +1,4 @@
-const { Builder, By } = require('selenium-webdriver');
+import { Builder, By } from 'selenium-webdriver';
 
 const targetUrl = 'https://item.jd.com/10036178660064.html';
 const refreshTiming = 1000;
