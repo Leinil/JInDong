@@ -5,7 +5,7 @@
   "exports": "./index.js",
   "scripts": {
     "start": "node main.js && node test.js",
-    "test": "node test.js"
+    "test": "node wake-up-window.js"
   },
   "type": "module",
   "author": "",
