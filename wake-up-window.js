@@ -1,109 +1,126 @@
-import { Builder, By } from "selenium-webdriver";
+import { Builder, By } from 'selenium-webdriver';
 
-const targetUrl = "https://item.jd.com/10070625520377.html";
-const refreshTiming = 1000;
-const gapTiming = 2000;
-const buyXpath = [`\/\/*[@id="InitCartUrl"]`, `\/\/*[@id="choose-btn-ko"]`];
-const shopCarXpath = `\/\/*[@id="GotoShoppingCart"]`;
-const orderXpath = `\/\/*[@id="cart-body"]/div[2]/div[5]/div/div[2]/div/div/div/div[2]/div[2]/div/div[1]/a`;
+const targetUrl = 'https://item.jd.com/10070625520377.html';
+const itemRefreshTiming = 1000;
+const pagePollingTiming = 1000;
+
+const buyButtonXpath = [
+  `\/\/*[@id="InitCartUrl"]`,
+  `\/\/*[@id="choose-btn-ko"]`,
+];
+const goToCartXpath = `\/\/*[@id="GotoShoppingCart"]`;
+const goToSubmitXpath = `\/\/*[@id="cart-body"]/div[2]/div[5]/div/div[2]/div/div/div/div[2]/div[2]/div/div[1]/a`;
 const submitXpath = `\/\/*[@id="order-submit"]`;
 const payXpath = `\/\/*[@id="indexBlurId"]/div[2]/div[1]/div[2]/div/div[2]/div[2]/div[2]/div/div/div[1]`;
 
-const loginPath = "passport.jd.com";
-const itemPath = "item.jd.com";
-const cardPath = "cart.jd.com";
-const pathSet = [loginPath, itemPath, cardPath];
+const loginPage = 'passport.jd.com';
+const itemInfoPage = 'item.jd.com';
+const addToCartPage = 'cart.jd.com/addToCart';
+const inSubmitPage = 'cart.jd.com/cart_index';
+const pathSet = [loginPage, itemInfoPage, addToCartPage, inSubmitPage];
 
 const loginStatus = {
   enterLoginPage: false,
   afterLogin: false,
 };
 
-(async function main() {
-  const driver = await new Builder().forBrowser("chrome").build();
-  await driver.get(targetUrl);
-  judgePath(driver);
-})();
+const judgePage = async (driver,hasConfirmedPage) => {
+  let page
 
-const judgePath = async (driver) => {
-  const currentUrl = await driver.getCurrentUrl();
-  const path = pathSet.find((path) => currentUrl.includes(path));
+  if(hasConfirmedPage){
+    page=hasConfirmedPage
+  }else{
+    const currentUrl = await driver.getCurrentUrl();
+    page= pathSet.find((path) => currentUrl.includes(path));
+  }
 
-  switch (path) {
-    case loginPath:
+  switch (page) {
+    case loginPage:
       inLoginPage(driver);
       break;
-    case itemPath:
-      handleClickAddItem(driver);
+    case itemInfoPage:
+      inItemInfoPage(driver);
       break;
-    case cardPath:
-      handleClickGotoCard(driver);
+    case addToCartPage:
+      inAddToCartPage(driver);
+      break;
+    case inSubmitPage:
+      inSubmitOrderPage(driver);
+      break;
     default:
-      judgePath(driver);
+      judgePage(driver);
   }
 };
 
 const inLoginPage = (driver) => {
-  const loginIntevel = setInterval(async () => {
+  const loginInterval = setInterval(async () => {
     const currentUrl = await driver.getCurrentUrl();
 
-    if (currentUrl.includes(loginPath)) {
+    if (currentUrl.includes(loginPage)) {
       loginStatus.enterLoginPage = true;
     } else if (loginStatus.enterLoginPage) {
       loginStatus.afterLogin = true;
     }
 
     if (loginStatus.afterLogin) {
-      judgePath(driver);
-      clearInterval(loginIntevel);
+      judgePage(driver);
+      clearInterval(loginInterval);
     }
   }, 1000);
 };
 
 // 尝试加入购物车
-const handleClickAddItem = async (driver) => {
+const inItemInfoPage = async (driver) => {
   let found = false;
   let pathIndex = 0;
 
   while (!found) {
     try {
-      for (let i = pathIndex; i < buyXpath.length; i++) {
-        const button = await driver.findElement(By.xpath(buyXpath[i]));
+      for (let i = pathIndex; i < buyButtonXpath.length; i++) {
+        const button = await driver.findElement(By.xpath(buyButtonXpath[i]));
         await button.click();
         found = true;
-        judgePath(driver);
+        judgePage(driver);
       }
     } catch (err) {
       pathIndex++;
-      if (pathIndex === buyXpath.length) {
+      if (pathIndex === buyButtonXpath.length) {
         pathIndex = 0;
-        await driver.manage().setTimeouts({ implicit: refreshTiming });
         await driver.navigate().refresh();
+        await driver.manage().setTimeouts({ implicit: itemRefreshTiming });
+        judgePage(driver)
       }
     }
   }
 };
 
 // 按钮”去购物车结算“
-const handleClickGotoCard = async (driver) => {
+const inAddToCartPage = async (driver) => {
   // 到购物车
-  await driver.manage().setTimeouts({ implicit: gapTiming });
-  await driver.findElement(By.xpath(shopCarXpath)).click();
-  await handleSubmitOrder(driver);
+  try{
+    await driver.findElement(By.xpath(goToCartXpath)).click();
+  }catch{
+    pagePolling(driver,addToCartPage)
+  }
 };
 
-const handleSubmitOrder = async (driver) => {
+// 按钮“去结算”
+const inSubmitOrderPage = async (driver) => {
   // 提交订单
-  await driver.manage().setTimeouts({ implicit: gapTiming });
-  await driver.findElement(By.xpath(orderXpath)).click();
-  await handleGotoPayment(driver);
+  try{
+    await driver.findElement(By.xpath(goToSubmitXpath)).click();
+  }catch{
+    pagePolling(driver,inSubmitPage)
+  }
 };
 
 const handleGotoPayment = async (driver) => {
   // 准备付钱
-  await driver.manage().setTimeouts({ implicit: gapTiming });
-  await driver.findElement(By.xpath(submitXpath)).click();
-  await handlePayment(driver);
+  try{
+    await driver.findElement(By.xpath(submitXpath)).click();
+  }catch{
+    // pagePolling(driver,inSubmitPage)
+  }
 };
 
 const handlePayment = async (driver) => {
@@ -111,3 +128,20 @@ const handlePayment = async (driver) => {
   await driver.manage().setTimeouts({ implicit: gapTiming });
   await driver.findElement(By.xpath(payXpath)).click();
 };
+
+const pagePolling=async (driver,expected)=>{
+  const pollingInterval=setInterval(()=>{
+    const currentUrl = await driver.getCurrentUrl();
+    const page = pathSet.find((path) => currentUrl.includes(path));
+    if(page===expected){
+      clearInterval(pollingInterval);
+      judgePage(driver,page)
+    }
+  },pagePollingTiming)
+}
+
+(async function main() {
+  const driver = await new Builder().forBrowser('chrome').build();
+  await driver.get(targetUrl);
+  judgePage(driver);
+})();
