@@ -5,7 +5,8 @@ const userInfoStr = readFileSync("./user.json", "utf-8") || "{}";
 const userInfo = JSON.parse(userInfoStr);
 
 const targetUrl = userInfo.jdUrl;
-const maxPendingPage = 5000;
+const maxPendingTiming = 5000;
+const refreshSleepTiming = 3000;
 
 const buyButtonXpath = [
   `\/\/*[@id="InitCartUrl"]`,
@@ -35,6 +36,10 @@ const loginStatus = {
   enterLoginPage: false,
   afterLogin: false,
 };
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const judgePage = async (driver) => {
   const currentUrl = await driver.getCurrentUrl();
@@ -70,11 +75,19 @@ const judgePage = async (driver) => {
 const findButtonAndClick = async (driver, xpath) => {
   try {
     const targetDom = await driver.findElement(By.xpath(xpath));
-    await driver.wait(until.elementIsEnabled(targetDom), maxPendingPage);
+    // 这种和下面的driver.await都可以
+    // while (true) {
+    //   const pageState = await driver.executeScript(
+    //     "return document.readyState;"
+    //   );
+    //   if (pageState == "complete") break;
+    // }
+    await driver.wait(until.elementIsEnabled(targetDom), maxPendingTiming);
     targetDom.click();
     judgePage(driver);
   } catch {
     await driver.navigate().refresh();
+    await sleep(refreshSleepTiming);
     judgePage(driver);
   }
 };
