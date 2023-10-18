@@ -4,7 +4,7 @@
   "description": "",
   "exports": "./index.js",
   "scripts": {
-    "start": "node main.js && node test.js",
+    "start": "node main.js && node wake-up-window.js",
     "test": "node wake-up-window.js"
   },
   "type": "module",

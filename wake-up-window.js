@@ -1,7 +1,10 @@
 import { Builder, By } from 'selenium-webdriver';
+import { readFileSync } from 'fs';
 
-const targetUrl = 'https://item.jd.com/10070625520377.html';
-const itemRefreshTiming = 1000;
+const userInfoStr = readFileSync('./user.json', 'utf-8') || '{}';
+const userInfo = JSON.parse(userInfoStr);
+
+const targetUrl = userInfo.jdUrl;
 const pagePollingTiming = 1000;
 
 const buyButtonXpath = [
@@ -16,22 +19,31 @@ const payXpath = `\/\/*[@id="indexBlurId"]/div[2]/div[1]/div[2]/div/div[2]/div[2
 const loginPage = 'passport.jd.com';
 const itemInfoPage = 'item.jd.com';
 const addToCartPage = 'cart.jd.com/addToCart';
-const inSubmitPage = 'cart.jd.com/cart_index';
-const pathSet = [loginPage, itemInfoPage, addToCartPage, inSubmitPage];
+const orderInfoPage = 'cart.jd.com/cart_index';
+const checkPage = 'trade.jd.com';
+const paymentPage = 'payc.m.jd.com';
+const pathSet = [
+  loginPage,
+  itemInfoPage,
+  addToCartPage,
+  orderInfoPage,
+  checkPage,
+  paymentPage,
+];
 
 const loginStatus = {
   enterLoginPage: false,
   afterLogin: false,
 };
 
-const judgePage = async (driver,hasConfirmedPage) => {
-  let page
+const judgePage = async (driver, hasConfirmedPage) => {
+  let page;
 
-  if(hasConfirmedPage){
-    page=hasConfirmedPage
-  }else{
+  if (hasConfirmedPage) {
+    page = hasConfirmedPage;
+  } else {
     const currentUrl = await driver.getCurrentUrl();
-    page= pathSet.find((path) => currentUrl.includes(path));
+    page = pathSet.find((path) => currentUrl.includes(path));
   }
 
   switch (page) {
@@ -44,12 +56,30 @@ const judgePage = async (driver,hasConfirmedPage) => {
     case addToCartPage:
       inAddToCartPage(driver);
       break;
-    case inSubmitPage:
-      inSubmitOrderPage(driver);
+    case orderInfoPage:
+      inOrderInfoPage(driver);
+      break;
+    case checkPage:
+      inCheckPage(driver);
+      break;
+    case paymentPage:
+      inPaymentPage(driver);
       break;
     default:
       judgePage(driver);
+      break;
   }
+};
+
+const pagePolling = (driver, expected) => {
+  const pollingInterval = setInterval(async () => {
+    const currentUrl = await driver.getCurrentUrl();
+    const page = pathSet.find((path) => currentUrl.includes(path));
+    if (page === expected) {
+      clearInterval(pollingInterval);
+      judgePage(driver, page);
+    }
+  }, pagePollingTiming);
 };
 
 const inLoginPage = (driver) => {
@@ -58,7 +88,12 @@ const inLoginPage = (driver) => {
 
     if (currentUrl.includes(loginPage)) {
       loginStatus.enterLoginPage = true;
-    } else if (loginStatus.enterLoginPage) {
+    }
+
+    if (
+      loginStatus.enterLoginPage &&
+      pathSet.filter((p) => p !== loginPage).some((p) => currentUrl.includes(p))
+    ) {
       loginStatus.afterLogin = true;
     }
 
@@ -87,8 +122,7 @@ const inItemInfoPage = async (driver) => {
       if (pathIndex === buyButtonXpath.length) {
         pathIndex = 0;
         await driver.navigate().refresh();
-        await driver.manage().setTimeouts({ implicit: itemRefreshTiming });
-        judgePage(driver)
+        judgePage(driver);
       }
     }
   }
@@ -96,49 +130,44 @@ const inItemInfoPage = async (driver) => {
 
 // 按钮”去购物车结算“
 const inAddToCartPage = async (driver) => {
-  // 到购物车
-  try{
+  try {
     await driver.findElement(By.xpath(goToCartXpath)).click();
-  }catch{
-    pagePolling(driver,addToCartPage)
+    judgePage(driver);
+  } catch {
+    pagePolling(driver, addToCartPage);
   }
 };
 
 // 按钮“去结算”
-const inSubmitOrderPage = async (driver) => {
-  // 提交订单
-  try{
+const inOrderInfoPage = async (driver) => {
+  try {
     await driver.findElement(By.xpath(goToSubmitXpath)).click();
-  }catch{
-    pagePolling(driver,inSubmitPage)
+    judgePage(driver);
+  } catch {
+    pagePolling(driver, orderInfoPage);
   }
 };
 
-const handleGotoPayment = async (driver) => {
+const inCheckPage = async (driver) => {
   // 准备付钱
-  try{
+  try {
     await driver.findElement(By.xpath(submitXpath)).click();
-  }catch{
-    // pagePolling(driver,inSubmitPage)
+    judgePage(driver);
+  } catch {
+    pagePolling(driver, checkPage);
   }
 };
 
-const handlePayment = async (driver) => {
+const inPaymentPage = async (driver) => {
   // 选择支付方式之后 立即支付
-  await driver.manage().setTimeouts({ implicit: gapTiming });
-  await driver.findElement(By.xpath(payXpath)).click();
+  try {
+    await driver.manage().setTimeouts({ implicit: gapTiming });
+    await driver.findElement(By.xpath(payXpath)).click();
+    judgePage(driver);
+  } catch {
+    pagePolling(driver, paymentPage);
+  }
 };
-
-const pagePolling=async (driver,expected)=>{
-  const pollingInterval=setInterval(()=>{
-    const currentUrl = await driver.getCurrentUrl();
-    const page = pathSet.find((path) => currentUrl.includes(path));
-    if(page===expected){
-      clearInterval(pollingInterval);
-      judgePage(driver,page)
-    }
-  },pagePollingTiming)
-}
 
 (async function main() {
   const driver = await new Builder().forBrowser('chrome').build();

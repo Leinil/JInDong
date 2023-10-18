@@ -67,8 +67,8 @@ const setUserInfo = [
     type: 'password',
     name: 'secretKey',
     mask: '*',
-    message: '输入用于加密你所有密码的secretKey (不会被存储)',
-    when: (answer) => answer.shoppingMethod === 'auto',
+    message: '输入用于加密你所有密码的secretKey',
+    when: (answer) => answer.shoppingMethod === 'auto' && !userInfo.secretKey,
   },
 ];
 
@@ -85,16 +85,15 @@ const getJDItemUrl = [
 inquirer
   .prompt([...shoppingMethod, ...setUserInfo, ...getJDItemUrl])
   .then((answers) => {
-    const { secretKey, shoppingMethod, ...rest } = answers;
-    const { loginPassword, payPassword, ...otherInfo } = rest;
-
+    const { shoppingMethod, ...rest } = { ...answers, ...userInfo };
+    const { secretKey, loginPassword, payPassword, ...otherInfo } = rest;
     try {
       const data =
         shoppingMethod === 'auto'
           ? {
+              ...rest,
               loginPassword: encrypt(loginPassword, secretKey),
               payPassword: encrypt(payPassword, secretKey),
-              ...otherInfo,
             }
           : otherInfo;
 
