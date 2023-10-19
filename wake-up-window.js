@@ -1,5 +1,6 @@
 import { Builder, By, until } from "selenium-webdriver";
 import { readFileSync } from "fs";
+import { decrypt } from "./crypto.js";
 
 const userInfoStr = readFileSync("./user.json", "utf-8") || "{}";
 const userInfo = JSON.parse(userInfoStr);
@@ -8,6 +9,9 @@ const targetUrl = userInfo.jdUrl;
 const maxPendingTiming = 5000;
 const refreshSleepTiming = 3000;
 
+const userNamInputXpath = `\/\/*[@id="loginname"]`;
+const passWordInputXpath = `\/\/*[@id="nloginpwd"]`;
+const loginButtonXpath = `\/\/*[@id="loginsubmit"]`;
 const buyButtonXpath = [
   `\/\/*[@id="InitCartUrl"]`,
   `\/\/*[@id="choose-btn-ko"]`,
@@ -45,7 +49,7 @@ const judgePage = async (driver) => {
   const currentUrl = await driver.getCurrentUrl();
   const page = pathSet.find((path) => currentUrl.includes(path));
 
-  console.log(page, "page");
+  // console.log(page, "page");
 
   switch (page) {
     case loginPage:
@@ -94,6 +98,20 @@ const findButtonAndClick = async (driver, xpath) => {
 };
 
 const inLoginPage = async (driver) => {
+  if (userInfo.shoppingMethod === "auto" && !loginStatus.afterLogin) {
+    const { userName, loginPassword, secretKey } = userInfo;
+    const password = decrypt(loginPassword, secretKey);
+
+    try {
+      await driver.findElement(By.xpath(userNamInputXpath)).sendKeys(userName);
+      await driver.findElement(By.xpath(passWordInputXpath)).sendKeys(password);
+      await driver.findElement(By.xpath(loginButtonXpath)).click();
+      loginStatus.afterLogin = true;
+    } catch {
+      console.log("  登录失败  ");
+    }
+  }
+
   while (!loginStatus.afterLogin) {
     const currentUrl = await driver.getCurrentUrl();
 
